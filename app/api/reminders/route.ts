@@ -1,10 +1,8 @@
 import { dispatch } from '@/lib/dispatch';
 import { json, failure, runtime, db } from '@/lib/server';
 
-// This shared maintenance endpoint is protected by the Site's owner-only
-// dispatch access policy. Keep the Site private; public sharing requires
-// adding an explicit maintenance authorization mechanism first.
-// /mcp is reserved by Sites. Use this path for unattended service access.
+// The public backend authenticates unattended calls with a dedicated secret.
+// Calls from the former Sites schedule have no secret and safely do nothing.
 export async function POST(req:Request){try{
  const token=req.headers.get('x-reminder-key');
  if(!token)return json({managedBy:'github-actions',sent:0,failed:0,copySource:'not-needed'});
