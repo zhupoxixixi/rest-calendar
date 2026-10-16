@@ -49,7 +49,8 @@ jobs:
           if not key: raise SystemExit('Missing reminder secret')
           req=urllib.request.Request('https://rest-calendar.earthyamber128.chatgpt.site/api/reminders',
               data=json.dumps({'dryRun':os.environ['DRY_RUN']=='true'}).encode(),
-              headers={'Content-Type':'application/json','X-Reminder-Key':key},method='POST')
+              headers={'Content-Type':'application/json','X-Reminder-Key':key,
+                       'User-Agent':'RestCalendar-Reminder/1.0 (+https://github.com/zhupoxixixi/rest-calendar)'},method='POST')
           with urllib.request.urlopen(req,timeout=240) as response:
               data=json.load(response)
           print(json.dumps(data,ensure_ascii=False))
