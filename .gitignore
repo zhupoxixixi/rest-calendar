@@ -57,4 +57,5 @@ next-env.d.ts
 
 .dev.vars*
 output/
+/.playwright-cli/
 !.env.example
