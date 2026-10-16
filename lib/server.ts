@@ -10,5 +10,6 @@ export async function push(subscription:any, message:unknown) {
  const host=new URL(subscription.endpoint).hostname;
  if(!['push.apple.com','fcm.googleapis.com','updates.push.services.mozilla.com'].some(h=>host===h||host.endsWith('.'+h))) throw new Error('不支持的推送服务');
  const payload=await buildPushPayload({data:JSON.stringify(message),options:{ttl:3600}},subscription,{subject:runtime.VAPID_SUBJECT,publicKey:runtime.VAPID_PUBLIC_KEY,privateKey:runtime.VAPID_PRIVATE_KEY});
- return fetch(subscription.endpoint,{...payload,redirect:'error',signal:AbortSignal.timeout(15000)});
+ // Workers supports manual redirects; callers reject non-2xx responses without forwarding VAPID credentials.
+ return fetch(subscription.endpoint,{...payload,redirect:'manual',signal:AbortSignal.timeout(15000)});
 }
