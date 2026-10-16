@@ -9,7 +9,7 @@ on:
         type: boolean
         default: true
 permissions:
-  contents: read
+  contents: write
 concurrency:
   group: daily-phone-reminder
   cancel-in-progress: false
@@ -18,6 +18,26 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: Keep the public schedule active with a monthly marker
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import os, json, base64, datetime, urllib.request, urllib.error
+          url='https://api.github.com/repos/'+os.environ['GITHUB_REPOSITORY']+'/contents/.github/automation-heartbeat'
+          headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'}
+          current=datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m')+'\n'
+          prior={}
+          try:
+              with urllib.request.urlopen(urllib.request.Request(url,headers=headers),timeout=20) as response: prior=json.load(response)
+          except urllib.error.HTTPError as error:
+              if error.code!=404: raise
+          if prior and base64.b64decode(prior['content']).decode()==current: raise SystemExit(0)
+          payload={'message':'Keep daily reminders active','content':base64.b64encode(current.encode()).decode()}
+          if prior: payload['sha']=prior['sha']
+          with urllib.request.urlopen(urllib.request.Request(url,data=json.dumps(payload).encode(),headers=headers,method='PUT'),timeout=20) as response: print('Monthly schedule marker saved:',response.status)
+          PY
       - name: Send daily local calendar reminder
         env:
           CRON_TOKEN: ${{ secrets.REMINDER_CRON_TOKEN }}

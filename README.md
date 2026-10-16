@@ -13,7 +13,7 @@ GitHub Pages 前端：https://zhupoxixixi.github.io/rest-calendar/
 
 ## 每日通知
 
-GitHub Actions 的 `daily-reminder.yml` 在 UTC 11:00（韩国20:00、中国19:00）触发云端后台。GitHub 定时任务可能延迟，不应作为精确闹钟或唯一的考勤保障。
+GitHub Actions 的 `daily-reminder.yml` 在 UTC 11:00（韩国20:00、中国19:00）触发云端后台。GitHub 定时任务可能延迟，不应作为精确闹钟或唯一的考勤保障。用户已授权每月自动提交一条不含用户数据的运行月份标记，避免公共仓库60天无活动导致计划任务停用。
 
 云端不读取个人班表，只发送目标日期和通用短句。iPhone Service Worker 从同源 IndexedDB 读取本地班表，显示“明天上班 / 值班 / 休班”。没导入目标月份时显示待导入提示。每次 push 都显示可见通知，符合 Safari 要求。浏览器不需要保持打开，电脑也不需要开机。
 
