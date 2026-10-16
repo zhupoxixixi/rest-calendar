@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {monthKey, daysIn, validMonth, nextDate, validateSchedule} from '../lib/calendar.ts';
+import {monthKey, daysIn, validMonth, nextDate, validateSchedule,setDay} from '../lib/calendar.ts';
 const valid={name:'李四',month:'2026-10',days:Array.from({length:31},(_,i)=>({day:i+1,label:'休',kind:'rest'}))};
 test('month boundary uses Korea time, independent of host timezone',()=>{assert.equal(monthKey(new Date('2026-09-30T15:00:00Z')),'2026-10');assert.equal(monthKey(new Date('2026-09-30T14:59:59Z')),'2026-09');});
 test('leap years and different month lengths',()=>{assert.equal(daysIn('2028-02'),29);assert.equal(daysIn('2026-02'),28);assert.equal(daysIn('2026-11'),30);});
@@ -9,5 +9,10 @@ test('reject invalid months',()=>{for(const month of ['2026-00','2026-13','26-10
 test('accept exact target person and full month',()=>assert.equal(validateSchedule(valid,'李四','2026-10').days.length,31));
 test('reject another person and wrong month',()=>{assert.throws(()=>validateSchedule(valid,'张三','2026-10'));assert.throws(()=>validateSchedule(valid,'李四','2026-11'));});
 test('reject missing, duplicate and impossible day numbers',()=>{assert.throws(()=>validateSchedule({...valid,days:valid.days.slice(1)},'李四','2026-10'));for(const day of [1,0,32,2.5])assert.throws(()=>validateSchedule({...valid,days:valid.days.map((d,i)=>i===30?{...d,day}:d)},'李四','2026-10'));});
-test('uncertain data stays uncertain',()=>{const draft=validateSchedule({...valid,days:valid.days.map(d=>({...d,kind:'unknown',label:''}))},'李四','2026-10');assert.equal(draft.days[0].kind,'unknown');assert.equal(draft.days[0].label,'待确认');});
+test('unset data stays unset',()=>{const draft=validateSchedule({...valid,days:valid.days.map(d=>({...d,kind:'unknown',label:''}))},'李四','2026-10');assert.equal(draft.days[0].kind,'unknown');assert.equal(draft.days[0].label,'未设置');});
 test('正 and 值班 mean work, 休 means rest even when model classification differs',()=>{const value=validateSchedule({...valid,days:valid.days.map((d,i)=>({...d,label:['正','值班','休'][i%3],kind:'unknown'}))},'李四','2026-10');assert.deepEqual(value.days.slice(0,3).map(d=>d.kind),['work','work','rest']);});
+test('first manual entry leaves every other day unset',()=>{const value=setDay(null,'2026-10',17,'work');assert.equal(value.days[16].label,'上班');assert.equal(value.days.filter(d=>d.kind==='unknown').length,30);});
+test('manual edit preserves existing days and does not mutate the source',()=>{const before=JSON.stringify(valid);const value=setDay(valid,'2026-10',17,'custom','夜班');assert.equal(JSON.stringify(valid),before);assert.equal(value.name,valid.name);assert.equal(value.days[16].kind,'custom');assert.deepEqual(value.days[15],validateSchedule(valid,valid.name,valid.month).days[15]);});
+test('new month has its own length and leaves old month unchanged',()=>{const value=setDay(valid,'2026-11',30,'rest');assert.equal(value.days.length,30);assert.equal(value.days[29].label,'休息');assert.equal(value.days.filter(d=>d.kind==='unknown').length,29);assert.equal(valid.days.length,31);});
+test('custom text is preserved without inferring a work status',()=>{const value=setDay(null,'2026-10',17,'custom','休');assert.equal(value.days[16].kind,'custom');assert.equal(value.days[16].label,'休');assert.throws(()=>setDay(null,'2026-10',17,'custom','  '));assert.throws(()=>setDay(null,'2026-10',17,'custom','长'.repeat(25)));});
+test('clear only the selected day and validate the target date',()=>{const value=setDay(valid,'2026-10',17,'unknown');assert.equal(value.days[16].kind,'unknown');assert.equal(value.days[15].kind,'rest');assert.throws(()=>setDay(null,'2026-11',31,'work'));});

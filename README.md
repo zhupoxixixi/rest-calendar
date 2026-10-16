@@ -1,39 +1,30 @@
 # 休班 · 我的月历
 
-GitHub Pages 前端：https://zhupoxixixi.github.io/rest-calendar/
+GitHub Pages：https://zhupoxixixi.github.io/rest-calendar/
 
-无需登录，适合朋友在 iPhone 用 Safari 添加到主屏幕。指定姓名导入完整月度排班，核对后保存；“正”和“值班”均为上班，“休”为休班。支持上下半月分段表格。
+点击日期后选择三个卡片：红色上班、绿色休息、自定义输入。输入自定义内容后保存；只修改这一天。未设置日期留空，旧班表和往期月份保留。支持离线查看与编辑、逐日清除、导出全部月份和恢复备份。
 
-## 数据在哪里
+图片识别已移除，旧识别接口返回410并提示刷新网页。日历编辑不调用API、不需要姓名或设备凭据。之前识别保存的班表继续兼容。
 
-- 姓名、逐日班次、历史月份、图片识别缓存：仅存在浏览器 IndexedDB。
-- 云端：匿名设备令牌的散列、上传次数与图片指纹、匿名网络来源散列、推送订阅和发送去重记录。
-- 图片经云端转发给用户配置的 FactChat `gpt-6-luna` 识别；不保存原图、姓名或识别结果。第三方识别服务的数据政策不由本项目控制。
-- 不自动跨设备同步。11 月导入不会覆盖 10 月。清除浏览器数据、更换手机或移除主屏幕应用前，应从“使用帮助”导出全部月份备份，再在新设备恢复。
+## 本地数据
+
+所有逐日安排与历史月份保存在原来的 IndexedDB `rest-calendar-local-v1`，不更换存储位置、不删除旧记录。自定义类型独立保存，通知不会将它误报成上班。每个月独立保存；更换手机、卸载主屏幕应用或清除网站数据前，应先导出备份。数据不会自动跨设备同步。
+
+云端仍保存通知所需的匿名设备凭据散列、推送地址和发送去重记录；旧的上传计数保留，新的手动编辑不产生上传记录。服务器不保存个人班表。
 
 ## 每日通知
 
-GitHub Actions 的 `daily-reminder.yml` 在 UTC 11:00（韩国20:00、中国19:00）触发云端后台。GitHub 定时任务可能延迟，不应作为精确闹钟或唯一的考勤保障。用户已授权每月自动提交一条不含用户数据的运行月份标记，避免公共仓库60天无活动导致计划任务停用。
+GitHub Actions `daily-reminder.yml` 每天UTC11:00（韩国20:00、中国19:00）调用云端提醒入口，不依赖个人电脑开机。计划任务可能延迟，不是精确闹钟。每月运行标记按已有授权保持计划任务活跃。
 
-云端不读取个人班表，只发送目标日期和通用短句。iPhone Service Worker 从同源 IndexedDB 读取本地班表，显示“明天上班 / 值班 / 休班”。没导入目标月份时显示待导入提示。每次 push 都显示可见通知，符合 Safari 要求。浏览器不需要保持打开，电脑也不需要开机。
+通知由手机的 Service Worker 读取本地次日安排，显示上班、休息或原样的自定义内容。未设置时提醒补充安排。通用短句仍通过用户配置的 FactChat API 和 `gpt-6-luna` 每天最多调用一次，失败使用固定文案，不上传个人班表。
 
-iPhone：Safari 打开 Pages → 分享 → 添加到主屏幕 → 从图标打开 → 提醒 → 开启通知。需要 iOS 16.4+。网页数据保存和推送订阅均与来源绑定，建议先添加到主屏幕后再正式导入、订阅。允许通知后可发送测试通知；真实手机的收件仍需本人确认。
+iPhone：Safari打开 → 添加到主屏幕 → 从图标打开 → 设置日程 → 提醒 → 允许通知 → 发送测试通知。需要iOS16.4+。通知受网络、系统权限、专注模式影响，真实手机送达需本人确认。
 
-后台每天至多调用 Luna 一次生成适用于工作或休班的通用短句，不向模型发送个人排班。失败时使用固定短句。通知受网络、系统权限和专注模式影响。
+## 发布
 
-## 上传额度
+`docs/`由GitHub Pages发布。Sites后端提供设备注册、推送订阅和受`X-Reminder-Key`保护的提醒执行入口。FactChat密钥、VAPID私钥仅在后端加密环境变量，GitHub Actions只保存提醒执行专用Secret。
 
-朋友版不要求账号，因此按设备身份（不是自然人）每自然月最多识别10次。失败也计次，相同图片的本地缓存不计次。清除设备数据可能产生新身份，无法声称严格的“每人10次”。服务端另设网络来源与全站额度保护：每来源每月最多50次，全站每月最多300次新识别；最多20个新设备/来源/月、500个新设备/站点/月。共享出口可能共用保护限额。
-
-## 发布与密钥
-
-`docs/` 是预构建前端，由 GitHub Pages 工作流发布；不需要在浏览器配置 API 密钥。后端托管在 Sites，提供公开但有设备认证和额度限制的识别、订阅接口。
-
-FactChat API 密钥和 VAPID 私钥仅保存在后端加密环境变量。后台执行密钥 `CRON_TOKEN` 同时保存为 GitHub Actions 的 `REMINDER_CRON_TOKEN` Secret。它不包含模型密钥或班表。
-
-`POST /api/reminders` 只有 `X-Reminder-Key` 匹配时才会执行。未提供密钥只返回无操作结果，兼容停用的旧任务；错误密钥403。旧 `/mcp` 维护入口与云端班表写入接口已停用。
-
-开发：
+前端：`app/manual-calendar-client.tsx`、`lib/local-client.ts`、`public/sw.js`。旧入口`app/calendar-client.tsx`仅转发到新版。
 
 ```
 node scripts/build-pages.mjs
@@ -42,4 +33,4 @@ node --test tests/calendar.test.mjs tests/reminder-copy.test.mjs tests/local-not
 node scripts/run-framework.mjs build
 ```
 
-前端源码在 `pages-src/`、`app/calendar-client.tsx`、`lib/local-client.ts` 和 `public/sw.js`。后端与生成的数据库迁移保留在同一仓库。`.dev.vars`、`output/`、`.wrangler/` 永远不能提交。部署后端使用 `.openai/hosting.json` 的既有站点身份，不重新创建站点。
+`.dev.vars`、`output/`、`.playwright-cli/`与运行数据不得提交。GitHub发布须以GitHub当前main为基底，不能合并早期已清理的Sites私有源仓库提交历史。
