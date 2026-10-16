@@ -34,3 +34,12 @@ node scripts/run-framework.mjs build
 ```
 
 `.dev.vars`、`output/`、`.playwright-cli/`与运行数据不得提交。GitHub发布须以GitHub当前main为基底，不能合并早期已清理的Sites私有源仓库提交历史。
+
+
+## 主屏幕应用更新
+
+右上角刷新图标会跳过旧网页缓存、检查并下载当前版本，再重新载入。它只更新网页资源，保留 IndexedDB 中的月份、设备凭据和原有推送订阅，不注销 Service Worker。
+
+每天韩国日期首次打开、切回前台或跨天保持前台时，自动检查一次版本；有新版本才刷新。编辑弹窗打开时会延后；离线失败后等待联网重试。自动检查没有调用模型 API。iPhone 不支持网页周期性后台同步，完全关闭应用时不能保证每天后台刷新；每日通知继续由云端任务发送。
+
+发布时运行 `node scripts/build-pages.mjs` 会同时生成 `docs/version.json`、`public/version.json`、带版本号的页面元数据及资源链接。后端构建应放在该步骤之后，确保两个网址的版本信息一致。

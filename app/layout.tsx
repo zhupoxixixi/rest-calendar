@@ -1,8 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import release from '../public/version.json';
 
 export const metadata: Metadata = {
   title: "休班 · 我的月历",
+  other: {'rest-calendar-version':release.version},
   description: "点击日期设置上班、休息或自定义安排。班表保存在本机，每天提醒明天的安排。",
   manifest: '/manifest.webmanifest',
   appleWebApp: { capable: true, statusBarStyle: 'default', title: '休班' },

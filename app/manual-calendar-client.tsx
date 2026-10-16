@@ -1,9 +1,10 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
-import {Bell,BellRing,Check,ChevronLeft,ChevronRight,CircleHelp,LoaderCircle,Pencil,Share2,X} from 'lucide-react';
+import {Bell,BellRing,Check,ChevronLeft,ChevronRight,CircleHelp,LoaderCircle,Pencil,RefreshCw,Share2,X} from 'lucide-react';
 import {Day,Schedule,daysIn,monthKey,setDay} from '@/lib/calendar';
 import {localApi,savedMonths,downloadBackup,restoreBackup} from '@/lib/local-client';
 import {personalMessage} from './personal-message';
+import {checkedToday,markUpdateChecked,prepareAppUpdate,UPDATE_VIEW_KEY} from '@/lib/update-client';
 const weekdays=['一','二','三','四','五','六','日'];
 export default function CalendarClient(_props:{signedIn?:boolean}){
  const [month,setMonth]=useState(monthKey()),[schedule,setSchedule]=useState<Schedule|null>(null),[history,setHistory]=useState<string[]>([]);
@@ -11,6 +12,9 @@ export default function CalendarClient(_props:{signedIn?:boolean}){
  const [sheet,setSheet]=useState<'edit'|'notify'|'help'|null>(null),[choice,setChoice]=useState<Day['kind']>('work'),[custom,setCustom]=useState('');
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(''),[modalError,setModalError]=useState(''),[notice,setNotice]=useState('');
  const [subscribed,setSubscribed]=useState(false),[standalone,setStandalone]=useState(false),[isIOS,setIsIOS]=useState(false),[supported,setSupported]=useState(false);
+ const [updating,setUpdating]=useState(false);
+ const updateRunning=useRef(false),activity=useRef(false),view=useRef({month,selected});
+ activity.current=busy||sheet!==null;view.current={month,selected};
  const dialog=useRef<HTMLDialogElement>(null),backupInput=useRef<HTMLInputElement>(null),requestNumber=useRef(0),editInput=useRef<HTMLInputElement>(null);
  const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
  const [year,monthNum]=month.split('-').map(Number),current=schedule?.month===month?schedule:null;
@@ -18,7 +22,9 @@ export default function CalendarClient(_props:{signedIn?:boolean}){
  const offset=(new Date(Date.UTC(year,monthNum-1,1)).getUTCDay()+6)%7;
  async function refresh(target=month){const id=++requestNumber.current;setLoading(true);setError('');try{const data=await localApi('/api/state?month='+target);const months=await savedMonths();if(id!==requestNumber.current)return;setSchedule(data.schedule);setHistory(months);}catch(e){if(id===requestNumber.current)setError((e as Error).message);}finally{if(id===requestNumber.current)setLoading(false);}}
  useEffect(()=>{refresh(month);},[month]);
- useEffect(()=>{setIsIOS(/iPad|iPhone|iPod/.test(navigator.userAgent)||navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);setStandalone(matchMedia('(display-mode: standalone)').matches||(navigator as any).standalone===true);setSupported('serviceWorker'in navigator&&'PushManager'in window&&'Notification'in window);if('serviceWorker'in navigator)navigator.serviceWorker.register(new URL('sw.js',document.baseURI).href).then(r=>r.pushManager.getSubscription()).then(s=>setSubscribed(!!s)).catch(()=>{});},[]);
+ useEffect(()=>{setIsIOS(/iPad|iPhone|iPod/.test(navigator.userAgent)||navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);setStandalone(matchMedia('(display-mode: standalone)').matches||(navigator as any).standalone===true);setSupported('serviceWorker'in navigator&&'PushManager'in window&&'Notification'in window);if('serviceWorker'in navigator)navigator.serviceWorker.register(new URL('sw.js',document.baseURI).href,{updateViaCache:'none'}).then(r=>r.pushManager.getSubscription()).then(s=>setSubscribed(!!s)).catch(()=>{});},[]);
+ async function updateApp(force=false){if(updateRunning.current||activity.current)return;updateRunning.current=true;setUpdating(true);try{const result=await prepareAppUpdate(force,()=>!activity.current&&document.visibilityState==='visible');if(result.state==='deferred')return;markUpdateChecked();if(result.state==='ready'&&result.url){try{sessionStorage.setItem(UPDATE_VIEW_KEY,JSON.stringify(view.current));}catch{}location.replace(result.url);}}catch(e){if(force)setNotice(e instanceof Error?e.message:'暂时无法更新，请稍后重试');}finally{updateRunning.current=false;setUpdating(false);}}
+ useEffect(()=>{try{const saved=sessionStorage.getItem(UPDATE_VIEW_KEY);if(saved){sessionStorage.removeItem(UPDATE_VIEW_KEY);const value=JSON.parse(saved);if(/^20\d\d-(0[1-9]|1[0-2])$/.test(value.month)&&Number.isInteger(value.selected)&&value.selected>=1&&value.selected<=daysIn(value.month)){setMonth(value.month);setSelected(value.selected);}}}catch{}const url=new URL(location.href);if(url.searchParams.has('__refresh')){url.searchParams.delete('__refresh');window.history.replaceState(null,'',url);}if(import.meta.env.DEV)return;let lastAttempt=0;const check=()=>{if(document.visibilityState!=='visible'||!navigator.onLine||activity.current||updateRunning.current||checkedToday()||Date.now()-lastAttempt<60000)return;lastAttempt=Date.now();void updateApp();};check();document.addEventListener('visibilitychange',check);window.addEventListener('online',check);const timer=setInterval(check,60000);return()=>{document.removeEventListener('visibilitychange',check);window.removeEventListener('online',check);clearInterval(timer);};},[]);
  useEffect(()=>{if(sheet){setModalError('');dialog.current?.showModal();}else dialog.current?.close();},[sheet]);
  useEffect(()=>{if(choice==='custom'&&sheet==='edit')editInput.current?.focus();},[choice,sheet]);
  useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(''),4500);return()=>clearTimeout(timer);},[notice]);
@@ -38,7 +44,7 @@ export default function CalendarClient(_props:{signedIn?:boolean}){
  }
  return <div className="app-shell"><main className="calendar-page">
   <section className="calendar-card" aria-label="月度排班日历">
-   <div className="calendar-actions"><button className={'icon-btn reminder-button '+(subscribed?'enabled':'')} aria-label="每日提醒" aria-pressed={subscribed} onClick={()=>setSheet('notify')}><Bell size={20}/>{subscribed&&<span className="reminder-dot"/>}</button><button className="icon-btn" aria-label="使用帮助" onClick={()=>setSheet('help')}><CircleHelp size={20}/></button></div>
+   <div className="calendar-actions"><button className="icon-btn" aria-label="刷新应用" title="刷新应用" disabled={updating||busy} onClick={()=>updateApp(true)}><RefreshCw size={20} className={updating?'spin':''}/></button><button className={'icon-btn reminder-button '+(subscribed?'enabled':'')} aria-label="每日提醒" aria-pressed={subscribed} onClick={()=>setSheet('notify')}><Bell size={20}/>{subscribed&&<span className="reminder-dot"/>}</button><button className="icon-btn" aria-label="使用帮助" onClick={()=>setSheet('help')}><CircleHelp size={20}/></button></div>
    <div className="calendar-toolbar"><div className="month-heading"><h2>{monthNum}<span>月</span><span className="year">{year}</span></h2></div><div className="month-nav"><button className="today-btn" onClick={goToday}>今天</button><button className="icon-btn" aria-label="上个月" onClick={()=>move(-1)}><ChevronLeft size={21}/></button><button className="icon-btn" aria-label="下个月" onClick={()=>move(1)}><ChevronRight size={21}/></button></div></div>
    <div className="history-toolbar"><label>历史月份<select aria-label="历史月份" value={month} onChange={e=>{setMonth(e.target.value);setSelected(1);}}>{Array.from(new Set([month,...history])).sort().reverse().map(m=><option key={m} value={m}>{m.replace('-',' 年 ')} 月{history.includes(m)?' · 已保存':''}</option>)}</select></label></div>
    <div className="weekdays">{weekdays.map((d,i)=><span key={d} className={i>4?'weekend':''}>{d}</span>)}</div>

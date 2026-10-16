@@ -59,3 +59,8 @@ iPhone 字体使用系统默认字体，不加载网络字体。
 提醒继续使用现有 FactChat API、`gpt-6-luna`、云端推送订阅和 GitHub 每日任务。改界面或留言不需要修改密钥，也不需要把密钥放进网页。
 
 开发工具原理参考：[Vite 的热更新](https://vite.dev/guide/features#hot-module-replacement)、[VS Code 官方说明](https://code.visualstudio.com/docs/getstarted/userinterface)。
+
+
+## 让朋友的主屏幕应用获取更新
+
+发布成功后，朋友点月历右上角的刷新图标即可获取最新界面，本机班表会保留。每天首次打开或切回前台也会自动检查，有新版本才刷新。正编辑日期时会延后更新；完全关闭时，iPhone 无法保证网页每天在后台刷新。通知仍由原来的云端任务发送。
