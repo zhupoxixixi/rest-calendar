@@ -1,51 +1,45 @@
 # 休班 · 我的月历
 
-适合 iPhone 的排班图片导入、整月日历和 Web Push（网页推送）提醒。
+GitHub Pages 前端：https://zhupoxixixi.github.io/rest-calendar/
 
-## 使用
+无需登录，适合朋友在 iPhone 用 Safari 添加到主屏幕。指定姓名导入完整月度排班，核对后保存；“正”和“值班”均为上班，“休”为休班。支持上下半月分段表格。
 
-登录 → 上传 JPG/PNG/WebP → 指定图片中的准确姓名和月份 → 逐日核对 → 确认保存。每个账号每月保留一位人员的班表，保存会替换该月数据，其他月份保留。
+## 数据在哪里
 
-iPhone 使用 Safari 打开，分享 → 添加到主屏幕 → 从桌面图标打开 → 提醒 → 开启通知。需要 iOS 16.4+。通知默认在休班前一天 20:00 Asia/Seoul（中国时间 19:00）发送。系统通知权限、网络、专注模式可能影响实际到达时间。
+- 姓名、逐日班次、历史月份、图片识别缓存：仅存在浏览器 IndexedDB。
+- 云端：匿名设备令牌的散列、上传次数与图片指纹、匿名网络来源散列、推送订阅和发送去重记录。
+- 图片经云端转发给用户配置的 FactChat `gpt-6-luna` 识别；不保存原图、姓名或识别结果。第三方识别服务的数据政策不由本项目控制。
+- 不自动跨设备同步。11 月导入不会覆盖 10 月。清除浏览器数据、更换手机或移除主屏幕应用前，应从“使用帮助”导出全部月份备份，再在新设备恢复。
 
-## 与原项目沿用的逻辑
+## 每日通知
 
-参考食堂和公告项目的服务端 API、结构化数据校验、缓存和数据/展示分离；原项目未修改。网页打开、月份切换、查看、核对、保存不调用模型。
+GitHub Actions 的 `daily-reminder.yml` 在 UTC 11:00（韩国20:00、中国19:00）触发云端后台。GitHub 定时任务可能延迟，不应作为精确闹钟或唯一的考勤保障。
 
-- FactChat 兼容 Chat Completions，默认 `gpt-6-luna`，一次请求识别整月指定人员，不自动重试。
-- 图片、姓名、月份按账号做 SHA-256 缓存。不保存原图，图片会发送给配置的识别服务处理。
-- 图片不清、图例不明确、空白单元格标记 `unknown`；不根据周末猜测休班，待确认日期禁止保存。
-- 账号使用 Sites 平台身份头，D1 持久化记录，全部用户数据查询限定 user_id。
-- 自然月按 Asia/Seoul 计算，每账号最多 10 次新识别请求（失败也计次）；单条原子 SQL 先预留额度，再调用外部服务。缓存不重复扣次。
-- 推送采用 RFC 8291 aes128gcm 与 VAPID；Service Worker 处理关闭网页后的通知。无原生日历依赖。
+云端不读取个人班表，只发送目标日期和通用短句。iPhone Service Worker 从同源 IndexedDB 读取本地班表，显示“明天上班 / 值班 / 休班”。没导入目标月份时显示待导入提示。每次 push 都显示可见通知，符合 Safari 要求。浏览器不需要保持打开，电脑也不需要开机。
 
-## 配置与部署
+iPhone：Safari 打开 Pages → 分享 → 添加到主屏幕 → 从图标打开 → 提醒 → 开启通知。需要 iOS 16.4+。网页数据保存和推送订阅均与来源绑定，建议先添加到主屏幕后再正式导入、订阅。允许通知后可发送测试通知；真实手机的收件仍需本人确认。
 
-使用 Sites 管理身份、D1 数据库、加密环境变量和托管。`.openai/hosting.json` 是唯一站点身份；禁止重新创建站点。
+后台每天至多调用 Luna 一次生成适用于工作或休班的通用短句，不向模型发送个人排班。失败时使用固定短句。通知受网络、系统权限和专注模式影响。
 
-服务端变量：`ROSTER_API_KEY`、`ROSTER_API_ENDPOINT`、`ROSTER_MODEL`、`VAPID_PUBLIC_KEY`、`VAPID_PRIVATE_KEY`、`VAPID_SUBJECT`。本地使用忽略的 `.dev.vars`。任何密钥都不能提交 Git。
+## 上传额度
+
+朋友版不要求账号，因此按设备身份（不是自然人）每自然月最多识别10次。失败也计次，相同图片的本地缓存不计次。清除设备数据可能产生新身份，无法声称严格的“每人10次”。服务端另设网络来源与全站额度保护：每来源每月最多50次，全站每月最多300次新识别；最多20个新设备/来源/月、500个新设备/站点/月。共享出口可能共用保护限额。
+
+## 发布与密钥
+
+`docs/` 是预构建前端，由 GitHub Pages 工作流发布；不需要在浏览器配置 API 密钥。后端托管在 Sites，提供公开但有设备认证和额度限制的识别、订阅接口。
+
+FactChat API 密钥和 VAPID 私钥仅保存在后端加密环境变量。后台执行密钥 `CRON_TOKEN` 同时保存为 GitHub Actions 的 `REMINDER_CRON_TOKEN` Secret。它不包含模型密钥或班表。
+
+`POST /api/reminders` 只有 `X-Reminder-Key` 匹配时才会执行。未提供密钥只返回无操作结果，兼容停用的旧任务；错误密钥403。旧 `/mcp` 维护入口与云端班表写入接口已停用。
+
+开发：
 
 ```
-node scripts/run-framework.mjs dev --hostname 127.0.0.1
+node scripts/build-pages.mjs
 node node_modules/typescript/bin/tsc --noEmit
+node --test tests/calendar.test.mjs tests/reminder-copy.test.mjs tests/local-notification.test.mjs
 node scripts/run-framework.mjs build
-node --test tests/calendar.test.mjs
 ```
 
-当前 Windows 环境中 Sites 包管理器帮助器调用 npm.cmd 有路径兼容问题；使用项目现有 `run-framework.mjs` 构建。保持 Sites Vite 集成，不手动部署到 Cloudflare。
-
-## 后台提醒
-
-`POST /api/reminders` 接受 `{ "dryRun": true/false }`，供关联的云端任务通过 Sites 官方服务访问令牌调用。`/mcp` 是平台保留路径，不能作为服务令牌的后台入口。
-
-有明日休班的待发通知时，使用用户指定的 FactChat `gpt-6-luna` 生成一条简短祝福；不向模型发送姓名或排班数据。按提醒日期在 D1 缓存，每个站点每天最多一次模型请求，所有设备复用。没有待发通知时不调用模型。API 失败时使用固定短句，提醒日期和接收人始终由已确认班表决定。图片识别与提醒短句共用 `ROSTER_API_*` 配置。
-
-云端任务默认每天 20:00 Asia/Seoul 运行，不依赖电脑开机；其关联状态以 Sites 返回为准。
-
-仅向订阅设备发送明日已保存的休班；日期与设备联合去重，失效订阅（404/410）自动清理。`dryRun` 只读取符合条件的订阅，不发送通知。每次最多处理 500 个订阅，当前面向个人/小规模使用。
-
-定时触发与推送服务交付均可能有延迟。未在真实 iPhone 上授权订阅前，不能宣称已验证手机实际收件。
-
-## 验证
-
-真实识别使用明确标注为测试的三人、31 天合成班表，核对指定姓名的 31 天标签和类型；不代表所有图片均可准确识别。浏览器 QA 产物在忽略的 `output/playwright/`。生产数据库不导入测试班表。
+前端源码在 `pages-src/`、`app/calendar-client.tsx`、`lib/local-client.ts` 和 `public/sw.js`。后端与生成的数据库迁移保留在同一仓库。`.dev.vars`、`output/`、`.wrangler/` 永远不能提交。部署后端使用 `.openai/hosting.json` 的既有站点身份，不重新创建站点。

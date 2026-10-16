@@ -1,0 +1,37 @@
+name: Daily phone reminder
+on:
+  schedule:
+    - cron: '0 11 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Check only; do not send phone notifications'
+        type: boolean
+        default: true
+permissions:
+  contents: read
+concurrency:
+  group: daily-phone-reminder
+  cancel-in-progress: false
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Send daily local calendar reminder
+        env:
+          CRON_TOKEN: ${{ secrets.REMINDER_CRON_TOKEN }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'true' || 'false' }}
+        run: |
+          python - <<'PY'
+          import os, json, urllib.request
+          key=os.environ['CRON_TOKEN']
+          if not key: raise SystemExit('Missing reminder secret')
+          req=urllib.request.Request('https://rest-calendar.earthyamber128.chatgpt.site/api/reminders',
+              data=json.dumps({'dryRun':os.environ['DRY_RUN']=='true'}).encode(),
+              headers={'Content-Type':'application/json','X-Reminder-Key':key},method='POST')
+          with urllib.request.urlopen(req,timeout=240) as response:
+              data=json.load(response)
+          print(json.dumps(data,ensure_ascii=False))
+          if data.get('failed'): raise SystemExit('Some push notifications failed')
+          PY

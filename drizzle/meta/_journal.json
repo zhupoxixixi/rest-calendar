@@ -15,6 +15,13 @@
       "when": 1792151205305,
       "tag": "0001_breezy_dreaming_celestial",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1792152076260,
+      "tag": "0002_striped_lake",
+      "breakpoints": true
     }
   ]
 }

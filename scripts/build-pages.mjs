@@ -1,0 +1,17 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import {fileURLToPath} from 'node:url';
+import {build} from 'esbuild';
+const root=path.resolve(fileURLToPath(new URL('..',import.meta.url))),out=path.join(root,'docs');
+if(path.dirname(out)!==root||path.basename(out)!=='docs')throw new Error('Unexpected output path');
+await fs.mkdir(out,{recursive:true});
+await build({entryPoints:[path.join(root,'pages-src/entry.tsx')],bundle:true,format:'esm',splitting:false,minify:true,outfile:path.join(out,'assets/app.js'),jsx:'automatic',alias:{'@':root},define:{'process.env.NODE_ENV':'"production"'}});
+for(const file of ['manifest.webmanifest','icon.svg','icon-192.png','icon-512.png'])await fs.copyFile(path.join(root,'public',file),path.join(out,file));
+const html='<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f6f6f8"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><title>休班 · 我的月历</title><meta name="description" content="班表只存在手机本地，整月查看，每天提醒，历史月份保留。"><link rel="manifest" href="./manifest.webmanifest"><link rel="apple-touch-icon" href="./icon-192.png"><link rel="icon" href="./icon.svg"><link rel="stylesheet" href="./assets/app.css"></head><body><div id="root"></div><script type="module" src="./assets/app.js"></script></body></html>';
+await fs.writeFile(path.join(out,'index.html'),html);
+await fs.writeFile(path.join(out,'.nojekyll'),'');
+const version=crypto.createHash('sha256').update(await fs.readFile(path.join(out,'assets/app.js'))).update(await fs.readFile(path.join(out,'assets/app.css'))).digest('hex').slice(0,12);
+const sw=(await fs.readFile(path.join(root,'public/sw.js'),'utf8')).replace('const SHELL_FILES=[];',`const SHELL_FILES=${JSON.stringify(['index.html','assets/app.js','assets/app.css','manifest.webmanifest','icon-192.png','icon-512.png'])};`).replace("const CACHE='rest-calendar-shell-v2';",`const CACHE='rest-calendar-shell-${version}';`);
+await fs.writeFile(path.join(out,'sw.js'),sw);
+console.log('GitHub Pages ready: '+out);

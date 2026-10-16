@@ -8,7 +8,7 @@ export function validateSchedule(input: any, name: string, month: string): Sched
  const seen=new Set<number>();
  const days=input.days.map((d:any) => {
   if (!Number.isInteger(d.day)||d.day<1||d.day>daysIn(month)||seen.has(d.day)||!['rest','work','unknown'].includes(d.kind)||typeof d.label!=='string'||d.label.length>24) throw new Error('识别结果不完整，请使用清晰完整的月度排班表');
-  seen.add(d.day); return {day:d.day,label:d.label.trim()||'待确认',kind:d.kind,note:typeof d.note==='string'?d.note.slice(0,160):''};
+  seen.add(d.day); return {day:d.day,label:d.label.trim()||'待确认',kind:({正:'work',值班:'work',正常:'work',休:'rest'} as Record<string,string>)[d.label.trim()]||d.kind,note:typeof d.note==='string'?d.note.slice(0,160):''};
  });
  return {name,month,days:days.sort((a:Day,b:Day)=>a.day-b.day)};
 }

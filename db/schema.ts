@@ -4,7 +4,7 @@
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 export const imports = sqliteTable('imports', {
  id: text('id').primaryKey(), userId: text('user_id').notNull(), billingMonth: text('billing_month').notNull(),
- hash: text('hash').notNull(), status: text('status').notNull(), result: text('result'), createdAt: text('created_at').notNull(),
+ hash: text('hash').notNull(), status: text('status').notNull(), result: text('result'), createdAt: text('created_at').notNull(), originHash: text('origin_hash'),
 });
 export const schedules = sqliteTable('schedules', {
  id: text('id').primaryKey(), userId: text('user_id').notNull(), month: text('month').notNull(),
@@ -21,4 +21,7 @@ export const deliveries = sqliteTable('deliveries', {
 export const reminderCopy = sqliteTable('reminder_copy', {
  day: text('day').primaryKey(), message: text('message'), status: text('status').notNull(),
  createdAt: text('created_at').notNull(),
+});
+export const devices=sqliteTable('devices',{
+ id:text('id').primaryKey(),tokenHash:text('token_hash').notNull(),originHash:text('origin_hash').notNull(),createdAt:text('created_at').notNull(),
 });
