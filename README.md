@@ -36,9 +36,9 @@ node --test tests/calendar.test.mjs
 
 ## 后台提醒
 
-`POST /api/reminders` 接受 `{ "dryRun": true/false }`，供后台任务通过 Sites 官方服务访问令牌调用。`/mcp` 平台网关要求独立 MCP OAuth，不能用服务令牌代替。
+`POST /api/reminders` 接受 `{ "dryRun": true/false }`，供后台任务通过 Sites 官方服务访问令牌调用。本站不启用平台 MCP 插件网关，以便云端任务通过官方服务访问令牌请求兼容的 JSON-RPC 维护入口。
 
-`POST /mcp` 暴露 `send_rest_reminders({dryRun?:boolean})`，经 Sites 私有访问边界保护。每天 20:00 Asia/Seoul 由关联的云任务调用。定时任务不是浏览器计时器，不依赖电脑开机。任务的实际关联和启用状态以 Sites 返回为准。
+`POST /mcp` 为已有云端任务保留 JSON-RPC 兼容入口，提供 `send_rest_reminders({dryRun?:boolean})`，经 Sites 私有访问边界保护。每天 20:00 Asia/Seoul 由关联的云任务调用。定时任务不是浏览器计时器，不依赖电脑开机。任务的实际关联和启用状态以 Sites 返回为准。
 
 仅向订阅设备发送明日已保存的休班；日期与设备联合去重，失效订阅（404/410）自动清理。`dryRun` 只读取符合条件的订阅，不发送通知。每次最多处理 500 个订阅，当前面向个人/小规模使用。
 
