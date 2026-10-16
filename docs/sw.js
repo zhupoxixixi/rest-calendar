@@ -1,6 +1,6 @@
 const LOCAL_DB='rest-calendar-local-v1';
-const SHELL_FILES=["index.html","assets/app.js?v=2ba1820a0bbb","assets/app.css?v=2ba1820a0bbb","manifest.webmanifest","icon-192.png","icon-512.png"];
-const CACHE='rest-calendar-shell-2ba1820a0bbb';
+const SHELL_FILES=["index.html","assets/app.js?v=851f02a04f4e","assets/app.css?v=851f02a04f4e","manifest.webmanifest","icon-192.png","icon-512.png"];
+const CACHE='rest-calendar-shell-851f02a04f4e';
 const appURL=self.registration.scope;
 self.addEventListener('install',event=>{self.skipWaiting();if(SHELL_FILES.length)event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL_FILES.map(file=>new URL(file,appURL).href))));});
 self.addEventListener('activate',event=>event.waitUntil((async()=>{for(const key of await caches.keys())if(key.startsWith('rest-calendar-shell-')&&key!==CACHE)await caches.delete(key);await self.clients.claim();})()));
