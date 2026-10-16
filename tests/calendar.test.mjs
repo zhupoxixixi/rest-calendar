@@ -1,0 +1,12 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {monthKey, daysIn, validMonth, nextDate, validateSchedule} from '../lib/calendar.ts';
+const valid={name:'李四',month:'2026-10',days:Array.from({length:31},(_,i)=>({day:i+1,label:'休',kind:'rest'}))};
+test('month boundary uses Korea time, independent of host timezone',()=>{assert.equal(monthKey(new Date('2026-09-30T15:00:00Z')),'2026-10');assert.equal(monthKey(new Date('2026-09-30T14:59:59Z')),'2026-09');});
+test('leap years and different month lengths',()=>{assert.equal(daysIn('2028-02'),29);assert.equal(daysIn('2026-02'),28);assert.equal(daysIn('2026-11'),30);});
+test('tomorrow crosses year and leap boundaries',()=>{assert.equal(nextDate(new Date('2026-12-31T11:00:00Z')),'2027-01-01');assert.equal(nextDate(new Date('2028-02-28T11:00:00Z')),'2028-02-29');});
+test('reject invalid months',()=>{for(const month of ['2026-00','2026-13','26-10','2026-1',null])assert.equal(validMonth(month),false);});
+test('accept exact target person and full month',()=>assert.equal(validateSchedule(valid,'李四','2026-10').days.length,31));
+test('reject another person and wrong month',()=>{assert.throws(()=>validateSchedule(valid,'张三','2026-10'));assert.throws(()=>validateSchedule(valid,'李四','2026-11'));});
+test('reject missing, duplicate and impossible day numbers',()=>{assert.throws(()=>validateSchedule({...valid,days:valid.days.slice(1)},'李四','2026-10'));for(const day of [1,0,32,2.5])assert.throws(()=>validateSchedule({...valid,days:valid.days.map((d,i)=>i===30?{...d,day}:d)},'李四','2026-10'));});
+test('uncertain data stays uncertain',()=>{const draft=validateSchedule({...valid,days:valid.days.map(d=>({...d,kind:'unknown',label:''}))},'李四','2026-10');assert.equal(draft.days[0].kind,'unknown');assert.equal(draft.days[0].label,'待确认');});
