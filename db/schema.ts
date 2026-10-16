@@ -18,3 +18,7 @@ export const deliveries = sqliteTable('deliveries', {
  id: text('id').primaryKey(), userId: text('user_id').notNull(), day: text('day').notNull(),
  status: text('status').notNull(), updatedAt: text('updated_at').notNull(),
 });
+export const reminderCopy = sqliteTable('reminder_copy', {
+ day: text('day').primaryKey(), message: text('message'), status: text('status').notNull(),
+ createdAt: text('created_at').notNull(),
+});

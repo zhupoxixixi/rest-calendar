@@ -4,7 +4,7 @@ import { json, failure, sameOrigin } from '@/lib/server';
 // This shared maintenance endpoint is protected by the Site's owner-only
 // dispatch access policy. Keep the Site private; public sharing requires
 // adding an explicit maintenance authorization mechanism first.
-// Unlike /mcp, this path supports the official Sites service-access token.
+// /mcp is reserved by Sites. Use this path for unattended service access.
 export async function POST(req:Request){try{
  if(req.headers.has('origin'))sameOrigin(req);
  const body=await req.json() as {dryRun?:boolean};
